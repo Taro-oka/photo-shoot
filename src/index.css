@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+body {
+  @apply text-gray-800 font-sans;
+  font-family: "Noto Sans JP", sans-serif;
+}
