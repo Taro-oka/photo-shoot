@@ -50,46 +50,36 @@ function CameraCapture({ setImageUrl }: Props) {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (video && canvas) {
-      // Get the browser-rendered dimensions of the video element
       const videoWidth = video.clientWidth;
       const videoHeight = video.clientHeight;
 
-      // Get the native dimensions of the video stream
       const nativeVideoWidth = video.videoWidth;
       const nativeVideoHeight = video.videoHeight;
 
-      // Calculate the aspect ratios
       const videoAspectRatio = nativeVideoWidth / nativeVideoHeight;
       const containerAspectRatio = videoWidth / videoHeight;
 
-      // Calculate the source rectangle (the part of the video to draw)
       let sx, sy, sWidth, sHeight;
-
       if (videoAspectRatio > containerAspectRatio) {
-        // Video is wider than the container, crop the sides
         sHeight = nativeVideoHeight;
         sWidth = nativeVideoHeight * containerAspectRatio;
         sx = (nativeVideoWidth - sWidth) / 2;
         sy = 0;
       } else {
-        // Video is taller than the container, crop the top and bottom
         sWidth = nativeVideoWidth;
         sHeight = nativeVideoWidth / containerAspectRatio;
         sx = 0;
         sy = (nativeVideoHeight - sHeight) / 2;
       }
 
-      // Set the canvas dimensions to the cropped size
       canvas.width = sWidth;
       canvas.height = sHeight;
 
       const ctx = canvas.getContext("2d");
       if (ctx) {
-        // Since the video is flipped with CSS, we flip the canvas context
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
 
-        // Draw the cropped part of the video onto the canvas
         ctx.drawImage(
           video,
           sx,
