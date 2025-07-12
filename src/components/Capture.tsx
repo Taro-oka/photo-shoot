@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import RoundedButton from "./Button";
+import Button from "./Button";
 
 type Props = {
   setImageUrl?: (imageUrl: string) => void;
@@ -86,7 +86,7 @@ function CameraCapture({ setImageUrl }: Props) {
       <h1 className="text-2xl font-semibold mb-6 text-gray-800">カメラ撮影</h1>
 
       {!photo && !requestedStart && (
-        <RoundedButton
+        <Button
           onClick={async () => {
             setRequestedStart(true);
             await new Promise((resolve) => setTimeout(resolve, 100));
@@ -95,7 +95,7 @@ function CameraCapture({ setImageUrl }: Props) {
           className="bg-green-600 text-white hover:bg-green-700"
         >
           カメラを起動する
-        </RoundedButton>
+        </Button>
       )}
 
       {!photo && requestedStart && (
@@ -111,18 +111,18 @@ function CameraCapture({ setImageUrl }: Props) {
             <p className="text-gray-500">カメラの起動に失敗しました。</p>
           ) : cameraStarted ? (
             <div className="flex gap-4">
-              <RoundedButton
+              <Button
                 onClick={takePhoto}
                 className="bg-blue-600 text-white hover:bg-blue-700"
               >
                 撮影する
-              </RoundedButton>
-              <RoundedButton
+              </Button>
+              <Button
                 onClick={cancelCamera}
                 className="bg-red-600 text-white hover:bg-red-700"
               >
                 撮影をやめる
-              </RoundedButton>
+              </Button>
             </div>
           ) : (
             <p className="text-gray-500">カメラを起動中...</p>
@@ -137,12 +137,12 @@ function CameraCapture({ setImageUrl }: Props) {
             alt="撮影した画像"
             className="w-full max-w-md rounded-xl aspect-video object-cover shadow-lg border border-gray-300"
           />
-          <RoundedButton
+          <Button
             onClick={retake}
             className="bg-gray-700 text-white hover:bg-gray-800"
           >
             もう一度撮影する
-          </RoundedButton>
+          </Button>
         </div>
       )}
 

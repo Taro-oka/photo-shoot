@@ -1,16 +1,16 @@
-type RoundedButtonProps = {
+type ButtonProps = {
   children: React.ReactNode;
   onClick: () => void;
   className?: string;
   type?: "button" | "submit" | "reset";
 };
 
-export default function RoundedButton({
+export default function Button({
   children,
   onClick,
   className = "",
   type = "button",
-}: RoundedButtonProps) {
+}: ButtonProps) {
   return (
     <button
       type={type}
