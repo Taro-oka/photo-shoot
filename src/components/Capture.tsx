@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import Button from "./Button";
 
 type Props = {
@@ -8,6 +8,7 @@ type Props = {
 function CameraCapture({ setImageUrl }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [requestedStart, setRequestedStart] = useState(false);
@@ -49,56 +50,37 @@ function CameraCapture({ setImageUrl }: Props) {
   const takePhoto = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (video && canvas) {
-      const videoWidth = video.clientWidth;
-      const videoHeight = video.clientHeight;
+    if (!video || !canvas) return;
 
-      const nativeVideoWidth = video.videoWidth;
-      const nativeVideoHeight = video.videoHeight;
+    const { sx, sy, sWidth, sHeight } = getCropDimensions(video);
 
-      const videoAspectRatio = nativeVideoWidth / nativeVideoHeight;
-      const containerAspectRatio = videoWidth / videoHeight;
+    canvas.width = sWidth;
+    canvas.height = sHeight;
 
-      let sx, sy, sWidth, sHeight;
-      if (videoAspectRatio > containerAspectRatio) {
-        sHeight = nativeVideoHeight;
-        sWidth = nativeVideoHeight * containerAspectRatio;
-        sx = (nativeVideoWidth - sWidth) / 2;
-        sy = 0;
-      } else {
-        sWidth = nativeVideoWidth;
-        sHeight = nativeVideoWidth / containerAspectRatio;
-        sx = 0;
-        sy = (nativeVideoHeight - sHeight) / 2;
-      }
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
 
-      canvas.width = sWidth;
-      canvas.height = sHeight;
+      ctx.drawImage(
+        video,
+        sx,
+        sy,
+        sWidth,
+        sHeight,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
 
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      drawDecoration(ctx, canvas.width, canvas.height); //同じ装飾を追加
 
-        ctx.drawImage(
-          video,
-          sx,
-          sy,
-          sWidth,
-          sHeight,
-          0,
-          0,
-          canvas.width,
-          canvas.height
-        );
-
-        const imageDataUrl = canvas.toDataURL("image/png");
-        setPhoto(imageDataUrl);
-        if (setImageUrl) {
-          setImageUrl(imageDataUrl);
-        }
-        stopCamera();
-      }
+      const imageDataUrl = canvas.toDataURL("image/png");
+      setPhoto(imageDataUrl);
+      setImageUrl?.(imageDataUrl);
+      stopCamera();
     }
   };
 
@@ -115,6 +97,85 @@ function CameraCapture({ setImageUrl }: Props) {
     stopCamera();
     setRequestedStart(false);
   };
+
+  const getCropDimensions = (
+    video: HTMLVideoElement
+  ): { sx: number; sy: number; sWidth: number; sHeight: number } => {
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
+    const displayWidth = video.clientWidth;
+    const displayHeight = video.clientHeight;
+
+    const videoAspectRatio = videoWidth / videoHeight;
+    const containerAspectRatio = displayWidth / displayHeight;
+
+    let sx, sy, sWidth, sHeight;
+    if (videoAspectRatio > containerAspectRatio) {
+      sHeight = videoHeight;
+      sWidth = videoHeight * containerAspectRatio;
+      sx = (videoWidth - sWidth) / 2;
+      sy = 0;
+    } else {
+      sWidth = videoWidth;
+      sHeight = videoWidth / containerAspectRatio;
+      sx = 0;
+      sy = (videoHeight - sHeight) / 2;
+    }
+
+    return { sx, sy, sWidth, sHeight };
+  };
+
+  // canvasにデコレーションを描画する(デコレーションのバリエーションを増やすならここの関数のバリエーションを増やす)
+  const drawDecoration = (
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number
+  ) => {
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const rays = 12;
+
+    ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+    ctx.lineWidth = 2;
+
+    for (let i = 0; i < rays; i++) {
+      const angle = (i * Math.PI * 2) / rays;
+      const x = centerX + Math.cos(angle) * width;
+      const y = centerY + Math.sin(angle) * height;
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
+  };
+
+  useEffect(() => {
+    let frameId: number;
+
+    const drawOverlay = () => {
+      const canvas = overlayCanvasRef.current;
+      const video = videoRef.current;
+      if (!canvas || !video) return;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const { sWidth, sHeight } = getCropDimensions(video);
+      canvas.width = sWidth;
+      canvas.height = sHeight;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawDecoration(ctx, canvas.width, canvas.height);
+
+      frameId = requestAnimationFrame(drawOverlay);
+    };
+
+    if (requestedStart && !photo) {
+      drawOverlay();
+    }
+
+    return () => cancelAnimationFrame(frameId);
+  }, [requestedStart, photo]);
 
   return (
     <div className="flex flex-col items-center justify-center bg-gray-50 px-4 py-8">
@@ -135,13 +196,20 @@ function CameraCapture({ setImageUrl }: Props) {
 
       {!photo && requestedStart && (
         <div className="flex flex-col items-center gap-4 w-full">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full max-w-2xl aspect-video rounded-xl object-cover shadow-lg border border-gray-300 transform -scale-x-100"
-          />
+          <div className="relative w-full max-w-2xl aspect-video">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover rounded-xl border border-gray-300 transform -scale-x-100"
+            />
+            <canvas
+              ref={overlayCanvasRef}
+              className="absolute top-0 left-0 w-full h-full pointer-events-none"
+            />
+          </div>
+
           {cameraFailed ? (
             <p className="text-gray-500">カメラの起動に失敗しました。</p>
           ) : cameraStarted ? (
@@ -170,7 +238,7 @@ function CameraCapture({ setImageUrl }: Props) {
           <img
             src={photo}
             alt="撮影した画像"
-            className="w-full max-w-md rounded-xl aspect-video object-cover shadow-lg border border-gray-300"
+            className="w-full max-w-md rounded-xl  shadow-lg border border-gray-300"
           />
           <Button
             onClick={retake}
